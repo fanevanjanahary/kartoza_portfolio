@@ -182,127 +182,56 @@ def generate_html_content(portfolios):
     return content
 
 
-def generate_html_file(content):
-    output = io.BytesIO()
-    output.write(content.encode('utf-8'))
-    output.seek(0)
-    return output.getvalue()
-
-
 def generate_docx(html_content):
     doc = Document()
     soup = BeautifulSoup(html_content, 'html.parser')
 
-    def add_paragraph(text, style=None, alignment=None):
-        p = doc.add_paragraph(text, style=style)
-        if alignment:
-            p.alignment = alignment
-        return p
-
-    def add_heading(text, level, alignment=None):
-        heading = doc.add_heading(text, level=level)
-        if alignment:
-            heading.alignment = alignment
-
-    def add_image(src, width=None):
-        try:
-            response = requests.get(src)
-            img = io.BytesIO(response.content)
-            doc.add_picture(img, width=width)
-        except Exception as e:
-            print(f"Could not load image from {src}: {e}")
-
-    def apply_style(element, para):
-        style = element.get('style', '')
-        if 'font-size' in style:
-            try:
-                size = int(style.split('font-size:')[1].split('px')[0].strip())
-                para.style.font.size = Pt(size)
-            except (IndexError, ValueError) as e:
-                print(f"Error parsing font-size: {e}")
-        if 'font-weight' in style and 'bold' in style:
-            para.style.font.bold = True
-        if 'text-align' in style:
-            if 'center' in style:
-                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            elif 'right' in style:
-                para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            elif 'left' in style:
-                para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-
-    def extract_width(style):
-        """Extracts the width from the style string."""
-        width_px = None
-        for prop in style.split(';'):
-            if 'width' in prop:
-                try:
-                    width_px = int(prop.split('width:')[1].split('px')[0].strip())
-                except (IndexError, ValueError) as e:
-                    print(f"Error extracting width: {e}, style: {style}")
-                break
-        return width_px
-
-    def handle_flex_div(flex_div):
-        rows = []
-        for child in flex_div.children:
-            if child.name == 'div':
-                cell_contents = []
-                for sub_child in child.children:
-                    if sub_child.name == 'p':
-                        para = add_paragraph(sub_child.get_text())
-                        apply_style(sub_child, para)
-                        cell_contents.append(para)
-                    elif sub_child.name == 'img':
-                        img = sub_child['src']
-                        cell_contents.append(img)
-                if cell_contents:
-                    rows.append(cell_contents)
-
-        # Ensure rows and columns are as expected before creating the table
-        if rows:
-            cols = max(len(row) for row in rows)
-            table = doc.add_table(rows=len(rows), cols=cols)
-            table.autofit = True
-
-            for i, row in enumerate(rows):
-                for j, content in enumerate(row):
-                    cell = table.cell(i, j)
-                    if isinstance(content, str):
-                        add_image(content, width=Inches(1))
-                    elif isinstance(content, type(add_paragraph(''))):
-                        cell.paragraphs[0].text = content.text
-                        cell.paragraphs[0].style = content.style
-                        cell.paragraphs[0].alignment = content.alignment
-                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        else:
-            print(f"No rows found in flex div: {flex_div}")
-
-    for element in soup.body.children:
-        if element.name == 'h2':
-            add_heading(element.get_text(), level=2, alignment=WD_ALIGN_PARAGRAPH.CENTER)
-        elif element.name == 'h3':
-            add_heading(element.get_text(), level=3, alignment=WD_ALIGN_PARAGRAPH.CENTER)
+    # Handling headers and paragraphs with styles
+    for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'li', 'img', 'div']):
+        if element.name.startswith('h'):
+            doc.add_heading(element.get_text(), level=int(element.name[1]))
         elif element.name == 'p':
-            para = add_paragraph(element.get_text())
-            apply_style(element, para)
+            p = doc.add_paragraph(element.get_text())
+            if 'style' in element.attrs:
+                style = element.attrs['style']
+                if 'text-align:center' in style:
+                    p.alignment = 1  # Center alignment
         elif element.name == 'ul':
             for li in element.find_all('li'):
-                para = add_paragraph(f"- {li.get_text()}")
-                apply_style(li, para)
+                doc.add_paragraph(f'• {li.get_text()}', style='ListBullet')
         elif element.name == 'img':
-            width = None
-            style = element.get('style', '')
-            width_px = extract_width(style)
-            if width_px:
-                width = Pt(width_px * 0.75)  # Convert px to points for DOCX
-            add_image(element['src'], width=width)
-        elif element.name == 'div' and 'display: flex' in element.get('style', ''):
-            handle_flex_div(element)
+            response = requests.get(element['src'])
+            img = io.BytesIO(response.content)
+            doc.add_picture(img, width=Inches(2.0))  # Adjust size as needed
+        elif element.name == 'div':
+            style = element.attrs.get('style', '')
+            if 'display: flex' in style:
+                # Handle flex layout divs as tables
+                divs = element.find_all('div', recursive=False)
+                if not divs:
+                    continue  # Skip if no divs are found
+                num_columns = len(divs[0].find_all('div', recursive=False))
+                table = doc.add_table(rows=0, cols=num_columns)
+                
+                for row_div in divs:
+                    cells = row_div.find_all('div', recursive=False)
+                    row = table.add_row().cells
+                    for i, cell in enumerate(cells):
+                        if i < len(row):  # Ensure not to exceed the number of columns
+                            p = row[i].add_paragraph(cell.get_text())
+                            if 'text-align:center' in style:
+                                p.alignment = 1  # Center alignment
 
+            # Additional handling for specific divs
+            if 'width:40%' in style:
+                # Special handling for specific divs like the one with width:40%
+                pass
+            elif 'width:60%' in style:
+                # Special handling for specific divs like the one with width:60%
+                pass
     output = io.BytesIO()
     doc.save(output)
     return output.getvalue()
-
 
 def worldbank_format(portfolios):
     """Create a World Bank format document for the given portfolios."""
