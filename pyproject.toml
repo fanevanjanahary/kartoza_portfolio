@@ -9,12 +9,15 @@ readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
-    #z python-docx~=1.1.2
 ]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
+
+# Add python-docx to dependencies
+[tool.flit.dependencies]
+python-docx = "*"
 
 # These dependencies are only installed when developer mode is enabled
 [tool.bench.dev-dependencies]
