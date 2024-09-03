@@ -35,9 +35,6 @@ def export_portfolio(portfolio_names, format):
     elif format == "html":
         html_file_data = generate_html_file(content)
         file_data_list.append((html_file_data, "html"))
-        # Add other formats if required
-        file_data_list.append((generate_docx_content(portfolio_names), "docx"))
-        file_data_list.append((get_pdf(content), "pdf"))
         file_extension = "zip"
         # Create a ZIP file
         zip_buffer = io.BytesIO()
@@ -98,29 +95,16 @@ def generate_html_content(portfolios):
         technologies_list = ""
         for tech in portfolio.technologies:
             technologies_list += f"<li>{tech.technology}</li>"
-			
-        client_contact = ""
-        if portfolio.contact != "":
-            client_contact = portfolio.contact
-        else:
-            client_contact = "Unavailable"
-
-        client_reference = ""
-        if portfolio.client_reference != "":
-            client_reference = portfolio.client_reference
-        else:
-            client_reference = "Unavailable"
-		
-        client_logo = ""
-        if portfolio.client_logo != "":
-            client_logo = frappe.utils.get_url() + portfolio.client_logo
+        
+        client_contact = portfolio.contact if portfolio.contact != "" else "Unavailable"
+        client_reference = portfolio.client_reference if portfolio.client_reference != "" else "Unavailable"
+        client_logo = frappe.utils.get_url() + portfolio.client_logo if portfolio.client_logo != "" else ""
 
         services_list = ""
         for service in portfolio.services_listed:
             services_list += f"<li>{service.service}</li>"
 
         absolute_url = frappe.utils.get_url() 
-
         time = absolute_url + "/assets/portfolio/images/time.png"
         location = absolute_url + "/assets/portfolio/images/location.png"
         person = absolute_url + "/assets/portfolio/images/person.png"
@@ -130,93 +114,78 @@ def generate_html_content(portfolios):
         for image in portfolio.images:
             if image and image.website_image:
                 image_url = image.website_image
-                # Check if the URL is missing a schema and prepend one if necessary
                 if not image_url.startswith(('http://', 'https://')):
                     image_url = frappe.utils.get_url() + image_url
-                images_list += f'<img src="{image_url}" alt="Screenshot" style="width:100% !important;height:100% !important;object-fit:contain !important;padding:10px !important;"><br>'
+                images_list += f'<img src="{image_url}" alt="Screenshot" style="width:100%; height:auto; object-fit:contain; padding:10px;"><br>'
 
         project_details += f"""
-		<h3 style="color:#f4b340 !important;text-align:center !important;">Kartoza Project Sheet</h3>
-        <h2 style="text-align:center !important;">{portfolio.title}</h2>
-		<div>
-            <hr style=" border: 8px solid #f4b340 !important; width: 90px !important; margin:auto !important;">
-		</div>
-		<br><br>
-		<div style="display: flex !important; width: 100% !important;">
-            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
-                <div style="text-align:center !important;">
-                    <img src="{person}" alt="Project Image" style="width:80px !important;height:auto !important;">
-				</div>
-                <p>Client: {portfolio.client}</p>
-            </div>
-            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
-                <div >
-                    <img src="{location}" alt="Project Image" style="width:80px !important;height:auto !important;text-align:center !important;">
-				</div>
-                <p>Location: {portfolio.location}</p>
-            </div>
-            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
-                <div style="text-align:center !important;">
-                    <img src="{time}" alt="Project Image" style="width:80px !important;height:auto !important;text-align:center !important;">
-				</div>
-                <p>Period: {portfolio.start_date} - {portfolio.end_date}</p>
-            </div>
+        <h3 style="color:#f4b340; text-align:center;">Kartoza Project Sheet</h3>
+        <h2 style="text-align:center;">{portfolio.title}</h2>
+        <div>
+            <hr style="border: 8px solid #f4b340; width: 90px; margin:auto;">
         </div>
-		<div style="display: flex !important;">
-            <div style="display: flex !important; flex-direction: column !important; width:40% !important;">
-                <div style="width: 100% !important;border: 1px solid gray !important; height:100px !important;">
-                    <img src="{client_logo}" style="width:100% !important;height:100% !important;object-fit:contain !important;"/>
-				</div>
-                <div style="width: 100% !important;border: 1px solid gray !important;height:100px !important;">
-                    Client reference: {client_reference}
-				</div>
-                <div style="width: 100% !important;border: 1px solid gray !important;height:100px !important;">
-                    Client contact: {client_contact}
-				</div>
-            </div>
-            <div style="flex: 1 !important;width:60% !important; height: 300px !important;border: 1px solid gray !important;">
-                {images_list}
-			</div>
+        <br><br>
+        <table style="width:100%; border-collapse:collapse;">
+            <tr>
+                <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                    <img src="{person}" alt="Project Image" style="width:80px; height:auto;">
+                    <p>Client: {portfolio.client}</p>
+                </td>
+                <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                    <img src="{location}" alt="Project Image" style="width:80px; height:auto;">
+                    <p>Location: {portfolio.location}</p>
+                </td>
+                <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                    <img src="{time}" alt="Project Image" style="width:80px; height:auto;">
+                    <p>Period: {portfolio.start_date} - {portfolio.end_date}</p>
+                </td>
+            </tr>
+        </table>
+        <table style="width:100%; border-collapse:collapse;">
+            <tr>
+                <td style="width:40%; border:1px solid gray; vertical-align:top; padding:10px;">
+                    <div style="width:100%; height:100px; border:1px solid gray;">
+                        <img src="{client_logo}" style="width:100%; height:100%; object-fit:contain;"/>
+                    </div>
+                    <div style="width:100%; height:100px; border:1px solid gray;">
+                        Client reference: {client_reference}
+                    </div>
+                    <div style="width:100%; height:100px; border:1px solid gray;">
+                        Client contact: {client_contact}
+                    </div>
+                </td>
+                <td style="width:60%; border:1px solid gray; vertical-align:top; padding:10px;">
+                    <div style="height:300px; overflow:hidden;">
+                        {images_list}
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <table style="width:100%; border-collapse:collapse;">
+            <tr>
+                <td style="width:60%; border:1px solid gray; padding:10px;">
+                    <p>Project Description</p>
+                    <p>{portfolio.body}</p>
+                </td>
+                <td style="width:40%; border:1px solid gray; padding:10px;">
+                    <p>Services Provided</p>
+                    <ul>
+                        {services_list}
+                    </ul>
+                </td>
+            </tr>
+        </table>
+        <div>
+            <img src="{footer}" alt="Project Image" style="width:100%; height:auto; text-align:center; position:absolute; bottom:0; left:0;">
         </div>
-		
-		<div style="display: flex !important; width: 100% !important;">
-            <div style="flex: 1 !important; margin: 0 !important;  border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; width:60% !important;">
-			    <p>Project Description</p>
-                <p>{portfolio.body}</p>
-            </div>
-            <div style="flex: 1 !important; margin: 0 !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; width:40% !important;">
-                <p>Services Provided</p>
-				<ul>
-				{services_list}
-				</ul>
-            </div>
-        </div>
-		
-		<div>
-		    <img src="{footer}" alt="Project Image" style="width:100% !important;height:auto !important;text-align:center !important;position:absolute !important;bottom:-1px !important;left:0px !important;">
-		</div>
         """
 
     content = f"""
     <html>
     <head>
         <title>Kartoza Project Sheet</title>
-        <style>
-            @page {{
-                size: A4;
-                margin: 20mm;
-            }}
-            body {{
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 210mm !important;
-                height: 297mm !important;
-                box-sizing: border-box !important;
-            }}
-        </style>
     </head>
     <body>
-        
         {project_details}
     </body>
     </html>
