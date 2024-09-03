@@ -42,6 +42,7 @@ function show_export_dialog(selected) {
 }
 
 function export_portfolios(selected, format) {
+    console.log(format)
     frappe.call({
         method: 'portfolio.export.export_portfolio',
         args: {

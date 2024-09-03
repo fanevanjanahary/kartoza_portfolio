@@ -4,6 +4,7 @@ app_publisher = "Faneva Andriamiadantsoa"
 app_description = "Portfolio aims to export and manage portfolio data."
 app_email = "faneva@kartoza.com"
 app_license = "mit"
+from datetime import datetime
 # required_apps = []
 
 # Includes in <head>
@@ -29,9 +30,14 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-doctype_list_js = {
-	"Portfolio": "public/js/portfolio_list.js"
+app_include_js = [
+    f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}",
+]
+doctype_js = {
+	"Portfolio": f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}"
 }
+
+
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
