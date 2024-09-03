@@ -30,12 +30,12 @@ from datetime import datetime
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# app_include_js = [
-#     f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}",
-# ]
-# doctype_js = {
-# 	"Portfolio": f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}"
-# }
+app_include_js = [
+    f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}",
+]
+doctype_js = {
+	"Portfolio": f"/assets/portfolio/js/portfolio_list.js?v={datetime.now()}"
+}
 
 
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
