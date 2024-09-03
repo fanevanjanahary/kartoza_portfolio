@@ -46,17 +46,19 @@ def export_portfolio(portfolio_names, format):
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     default_file_name = f"portfolio_export_{timestamp}.{file_extension}"
 
-    # Return file for download
-    response = frappe.response
-    response.filename = default_file_name
-    response.filecontent = combined_file_data
-    response.type = 'binary'
-    response.nosession = True
+    # Create a new File document to save the generated file
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": default_file_name,
+        "is_private": 1,
+        "content": combined_file_data
+    })
+    file_doc.insert()
 
     return {
         "status": "success",
         "message": f"Portfolios exported successfully.",
-        "file_url": frappe.utils.get_url(response.file_url)
+        "file_url": file_doc.file_url
     }
 
 
