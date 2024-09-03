@@ -13,6 +13,7 @@ import tempfile
 import os
 import re
 from html import unescape
+import zipfile
 
 @frappe.whitelist()
 def export_portfolio(portfolio_names, format):
@@ -32,34 +33,61 @@ def export_portfolio(portfolio_names, format):
         file_data = worldbank_format(portfolio_names)
         file_extension = "docx"
     elif format == "html":
-        file_data = generate_html_file(content)
-        file_extension = "html"
+        html_file_data = generate_html_file(content)
+        file_data_list.append((html_file_data, "html"))
+        # Add other formats if required
+        file_data_list.append((generate_docx_content(portfolio_names), "docx"))
+        file_data_list.append((get_pdf(content), "pdf"))
+        file_extension = "zip"
+        # Create a ZIP file
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            for file_data, ext in file_data_list:
+                file_name = f"portfolio_export_{timestamp}.{ext}"
+                zip_file.writestr(file_name, file_data)
+        zip_buffer.seek(0)
+        file_data = zip_buffer.getvalue()
     else:
         frappe.throw(_("Unsupported file format"))
 
-    file_data_list.append(file_data)
+    if format != "html":
+        file_data_list.append((file_data, file_extension))
 
-    # Combine file_data_list into a single file if needed, for simplicity, return the first file.
-    combined_file_data = file_data_list[0]
+        # Generate a default file name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        default_file_name = f"portfolio_export_{timestamp}.{file_extension}"
 
-    # Generate a default file name with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    default_file_name = f"portfolio_export_{timestamp}.{file_extension}"
+        # Create a new File document to save the generated file
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": default_file_name,
+            "is_private": 1,
+            "content": file_data
+        })
+        file_doc.insert()
 
-    # Create a new File document to save the generated file
-    file_doc = frappe.get_doc({
-        "doctype": "File",
-        "file_name": default_file_name,
-        "is_private": 1,
-        "content": combined_file_data
-    })
-    file_doc.insert()
+        return {
+            "status": "success",
+            "message": f"Portfolios exported successfully.",
+            "file_url": file_doc.file_url
+        }
+    else:
+        # For HTML format, handle the ZIP file case
+        zip_file_name = f"portfolio_export_{timestamp}.zip"
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": zip_file_name,
+            "is_private": 1,
+            "content": file_data
+        })
+        file_doc.insert()
 
-    return {
-        "status": "success",
-        "message": f"Portfolios exported successfully.",
-        "file_url": file_doc.file_url
-    }
+        return {
+            "status": "success",
+            "message": f"Portfolios exported successfully.",
+            "file_url": file_doc.file_url
+        }
 
 
 def generate_html_content(portfolios):
@@ -85,9 +113,8 @@ def generate_html_content(portfolios):
 		
         client_logo = ""
         if portfolio.client_logo != "":
-            client_logo =frappe.utils.get_url() + portfolio.client_logo
+            client_logo = frappe.utils.get_url() + portfolio.client_logo
 
-			
         services_list = ""
         for service in portfolio.services_listed:
             services_list += f"<li>{service.service}</li>"
@@ -106,58 +133,58 @@ def generate_html_content(portfolios):
                 # Check if the URL is missing a schema and prepend one if necessary
                 if not image_url.startswith(('http://', 'https://')):
                     image_url = frappe.utils.get_url() + image_url
-                images_list += f'<img src="{image_url}" alt="Screenshot" style="width:100%;height:100%;object-fit:contain;padding:10px"><br>'
+                images_list += f'<img src="{image_url}" alt="Screenshot" style="width:100% !important;height:100% !important;object-fit:contain !important;padding:10px !important;"><br>'
 
         project_details += f"""
-		<h3 style="color:#f4b340;text-align:center">Kartoza Project Sheet</h3>
-        <h2 style="text-align:center">{portfolio.title}</h2>
+		<h3 style="color:#f4b340 !important;text-align:center !important;">Kartoza Project Sheet</h3>
+        <h2 style="text-align:center !important;">{portfolio.title}</h2>
 		<div>
-            <hr style=" border: 8px solid #f4b340; width: 90px; margin:auto !important;">
+            <hr style=" border: 8px solid #f4b340 !important; width: 90px !important; margin:auto !important;">
 		</div>
 		<br><br>
-		<div style="display: flex; width: 100%;">
-            <div style="flex: 1; margin: 0; text-align:center; border: 1px solid gray; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
-                <div style="text-align:center">
-                    <img src="{person}" alt="Project Image" style="width:80px;height:auto;">
+		<div style="display: flex !important; width: 100% !important;">
+            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
+                <div style="text-align:center !important;">
+                    <img src="{person}" alt="Project Image" style="width:80px !important;height:auto !important;">
 				</div>
                 <p>Client: {portfolio.client}</p>
             </div>
-            <div style="flex: 1; margin: 0; text-align:center; border: 1px solid gray; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
                 <div >
-                    <img src="{location}" alt="Project Image" style="width:80px;height:auto;text-align:center">
+                    <img src="{location}" alt="Project Image" style="width:80px !important;height:auto !important;text-align:center !important;">
 				</div>
                 <p>Location: {portfolio.location}</p>
             </div>
-            <div style="flex: 1; margin: 0; text-align:center; border: 1px solid gray; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
-                <div style="text-align:center">
-                    <img src="{time}" alt="Project Image" style="width:80px;height:auto;text-align:center">
+            <div style="flex: 1 !important; margin: 0 !important; text-align:center !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; justify-content: center !important;">
+                <div style="text-align:center !important;">
+                    <img src="{time}" alt="Project Image" style="width:80px !important;height:auto !important;text-align:center !important;">
 				</div>
                 <p>Period: {portfolio.start_date} - {portfolio.end_date}</p>
             </div>
         </div>
-		<div style="display: flex;">
-            <div style="display: flex; flex-direction: column; width:40%">
-                <div style="width: 100%;border: 1px solid gray; height:100px;">
-                    <img src="{client_logo}" style="width:100%;height:100%;object-fit:contain;"/>
+		<div style="display: flex !important;">
+            <div style="display: flex !important; flex-direction: column !important; width:40% !important;">
+                <div style="width: 100% !important;border: 1px solid gray !important; height:100px !important;">
+                    <img src="{client_logo}" style="width:100% !important;height:100% !important;object-fit:contain !important;"/>
 				</div>
-                <div style="width: 100%;border: 1px solid gray;height:100px;">
+                <div style="width: 100% !important;border: 1px solid gray !important;height:100px !important;">
                     Client reference: {client_reference}
 				</div>
-                <div style="width: 100%;border: 1px solid gray;height:100px;">
+                <div style="width: 100% !important;border: 1px solid gray !important;height:100px !important;">
                     Client contact: {client_contact}
 				</div>
             </div>
-            <div style="flex: 1;width:60%; height: 300px;border: 1px solid gray;">
+            <div style="flex: 1 !important;width:60% !important; height: 300px !important;border: 1px solid gray !important;">
                 {images_list}
 			</div>
         </div>
 		
-		<div style="display: flex; width: 100%;">
-            <div style="flex: 1; margin: 0;  border: 1px solid gray; padding: 10px; display: flex; flex-direction: column; width:60%">
+		<div style="display: flex !important; width: 100% !important;">
+            <div style="flex: 1 !important; margin: 0 !important;  border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; width:60% !important;">
 			    <p>Project Description</p>
                 <p>{portfolio.body}</p>
             </div>
-            <div style="flex: 1; margin: 0; border: 1px solid gray; padding: 10px; display: flex; flex-direction: column; width:40%">
+            <div style="flex: 1 !important; margin: 0 !important; border: 1px solid gray !important; padding: 10px !important; display: flex !important; flex-direction: column !important; width:40% !important;">
                 <p>Services Provided</p>
 				<ul>
 				{services_list}
@@ -166,7 +193,7 @@ def generate_html_content(portfolios):
         </div>
 		
 		<div>
-		    <img src="{footer}" alt="Project Image" style="width:100%;height:auto;text-align:center;postion:absolute;bottom:-1px;left:0px">
+		    <img src="{footer}" alt="Project Image" style="width:100% !important;height:auto !important;text-align:center !important;position:absolute !important;bottom:-1px !important;left:0px !important;">
 		</div>
         """
 
@@ -180,11 +207,11 @@ def generate_html_content(portfolios):
                 margin: 20mm;
             }}
             body {{
-                margin: 0;
-                padding: 0;
-                width: 210mm;
-                height: 297mm;
-                box-sizing: border-box;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                box-sizing: border-box !important;
             }}
         </style>
     </head>
@@ -195,6 +222,7 @@ def generate_html_content(portfolios):
     </html>
     """
     return content
+
 
 def generate_html_file(content):
     output = io.BytesIO()
