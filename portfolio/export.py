@@ -11,6 +11,8 @@ from docx.shared import Inches, Pt
 from datetime import datetime
 import tempfile
 import os
+import re
+from html import unescape
 
 @frappe.whitelist()
 def export_portfolio(portfolio_names, format):
@@ -24,7 +26,7 @@ def export_portfolio(portfolio_names, format):
         file_data = get_pdf(content)
         file_extension = "pdf"
     elif format == "docx":
-        file_data = generate_docx(content)
+        file_data = generate_docx_content(portfolio_names)
         file_extension = "docx"
     elif format == "world_bank":
         file_data = worldbank_format(portfolio_names)
@@ -181,57 +183,115 @@ def generate_html_content(portfolios):
     """
     return content
 
-
-def generate_docx(html_content):
-    doc = Document()
-    soup = BeautifulSoup(html_content, 'html.parser')
-
-    # Handling headers and paragraphs with styles
-    for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'li', 'img', 'div']):
-        if element.name.startswith('h'):
-            doc.add_heading(element.get_text(), level=int(element.name[1]))
-        elif element.name == 'p':
-            p = doc.add_paragraph(element.get_text())
-            if 'style' in element.attrs:
-                style = element.attrs['style']
-                if 'text-align:center' in style:
-                    p.alignment = 1  # Center alignment
-        elif element.name == 'ul':
-            for li in element.find_all('li'):
-                doc.add_paragraph(f'• {li.get_text()}', style='ListBullet')
-        elif element.name == 'img':
-            response = requests.get(element['src'])
-            img = io.BytesIO(response.content)
-            doc.add_picture(img, width=Inches(2.0))  # Adjust size as needed
-        elif element.name == 'div':
-            style = element.attrs.get('style', '')
-            if 'display: flex' in style:
-                # Handle flex layout divs as tables
-                divs = element.find_all('div', recursive=False)
-                if not divs:
-                    continue  # Skip if no divs are found
-                num_columns = len(divs[0].find_all('div', recursive=False))
-                table = doc.add_table(rows=0, cols=num_columns)
-                
-                for row_div in divs:
-                    cells = row_div.find_all('div', recursive=False)
-                    row = table.add_row().cells
-                    for i, cell in enumerate(cells):
-                        if i < len(row):  # Ensure not to exceed the number of columns
-                            p = row[i].add_paragraph(cell.get_text())
-                            if 'text-align:center' in style:
-                                p.alignment = 1  # Center alignment
-
-            # Additional handling for specific divs
-            if 'width:40%' in style:
-                # Special handling for specific divs like the one with width:40%
-                pass
-            elif 'width:60%' in style:
-                # Special handling for specific divs like the one with width:60%
-                pass
+def generate_html_file(content):
     output = io.BytesIO()
-    doc.save(output)
+    output.write(content.encode('utf-8'))
+    output.seek(0)
     return output.getvalue()
+
+
+def strip_html_tags(text):
+    """Remove HTML tags from a string."""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', unescape(text))
+
+def generate_docx_content(portfolios):
+    document = Document()
+    
+    # Define image paths
+    base_url = frappe.utils.get_url()
+    image_paths = {
+        'time': f"{base_url}/assets/portfolio/images/time.png",
+        'location': f"{base_url}/assets/portfolio/images/location.png",
+        'person': f"{base_url}/assets/portfolio/images/person.png",
+        'footer': f"{base_url}/assets/portfolio/images/footer.png"
+    }
+    
+    # Parse JSON
+    portfolio_names = frappe.parse_json(portfolios)
+    
+    for docname in portfolio_names:
+        portfolio = frappe.get_doc("Portfolio", docname)
+
+        # Create a title
+        document.add_heading('Kartoza Project Sheet', level=2).alignment = 1  # Center alignment
+        document.add_heading(portfolio.title, level=1).alignment = 1  # Center alignment
+
+        # Add a horizontal line
+        document.add_paragraph().add_run().add_break()
+        p = document.add_paragraph()
+        p.add_run().add_break()
+        p.add_run().add_break()
+        
+        # Add project information table
+        table = document.add_table(rows=1, cols=3)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Client'
+        hdr_cells[1].text = 'Location'
+        hdr_cells[2].text = 'Period'
+        
+        row_cells = table.add_row().cells
+        row_cells[0].text = portfolio.client
+        row_cells[1].text = portfolio.location
+        row_cells[2].text = f"{portfolio.start_date} - {portfolio.end_date}"
+
+        # Add client details table
+        document.add_paragraph().add_run().add_break()
+        table = document.add_table(rows=1, cols=2)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Client Reference'
+        hdr_cells[1].text = 'Client Contact'
+        
+        row_cells = table.add_row().cells
+        row_cells[0].text = portfolio.client_reference if portfolio.client_reference else 'Unavailable'
+        row_cells[1].text = portfolio.contact if portfolio.contact else 'Unavailable'
+
+        # Add project description and services
+        document.add_heading('Project Description', level=2)
+        description_text = strip_html_tags(portfolio.body)
+        document.add_paragraph(description_text)
+        
+        document.add_heading('Services Provided', level=2)
+        services_list = '\n'.join([service.service for service in portfolio.services_listed])
+        document.add_paragraph(services_list)
+
+        # Add images
+        if portfolio.images:
+            document.add_heading('Project Images', level=2)
+            for image in portfolio.images:
+                if image and image.website_image:
+                    image_url = image.website_image
+                    # Check if the URL is missing a schema and prepend one if necessary
+                    if not image_url.startswith(('http://', 'https://')):
+                        image_url = frappe.utils.get_url() + image_url
+                    try:
+                        response = requests.get(image_url)
+                        response.raise_for_status()  # Check if the request was successful
+                        image_stream = io.BytesIO(response.content)
+                        document.add_picture(image_stream, width=Inches(5))  # Adjust width as needed
+                        document.add_paragraph().add_run().add_break()
+                    except requests.RequestException:
+                        print(f"Could not fetch image from {image_url}")
+
+        # Add footer image
+        footer_image_url = image_paths['footer']
+        try:
+            response = requests.get(footer_image_url)
+            response.raise_for_status()  # Check if the request was successful
+            footer_image_stream = io.BytesIO(response.content)
+            document.add_picture(footer_image_stream, width=Inches(6))
+        except requests.RequestException:
+            print(f"Could not fetch footer image from {footer_image_url}")
+
+        # Add page break after each portfolio
+        document.add_page_break()
+    
+    output = io.BytesIO()
+    document.save(output)
+    return output.getvalue()
+
 
 def worldbank_format(portfolios):
     """Create a World Bank format document for the given portfolios."""
