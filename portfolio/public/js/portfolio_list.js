@@ -15,7 +15,7 @@ frappe.listview_settings['Portfolio'] = {
 
 function show_export_dialog(selected) {
     let d = new frappe.ui.Dialog({
-        title: __('Choose Export Format'),
+        title: __('Choose Export Format and Layout'),
         fields: [
             {
                 label: __('Format'),
@@ -25,29 +25,48 @@ function show_export_dialog(selected) {
                     { label: 'PDF', value: 'pdf' },
                     { label: 'DOCX', value: 'docx' },
                     { label: 'HTML', value: 'html' },
-                    { label: 'World Bank Format', value: 'world_bank' }
+                    
                 ],
                 default: 'pdf',
                 reqd: 1
+            },
+            {
+                label: __('Layout'),
+                fieldname: 'layout',
+                fieldtype: 'Select',
+                options: [
+                    { label: 'Kartoza', value: 'kartoza' },
+                    { label: 'World Bank', value: 'world bank' },
+                ],
+                default: 'standard',
+                reqd: 1
+            },
+            {
+                label: __('Include Sensitive Information'),
+                fieldname: 'include_sensitive',
+                fieldtype: 'Check',
+                default: 0
             }
         ],
         primary_action_label: __('Export'),
         primary_action: function(data) {
             d.hide();
-            export_portfolios(selected, data.format);
+            export_portfolios(selected, data.format, data.layout, data.include_sensitive);
         }
     });
 
     d.show();
 }
 
-function export_portfolios(selected, format) {
-    console.log(format)
+function export_portfolios(selected, format, layout, include_sensitive) {
+    console.log(format, layout);
     frappe.call({
         method: 'portfolio.export.export_portfolio',
         args: {
             portfolio_names: JSON.stringify(selected.map(item => item.name)),
-            format: format
+            format: format,
+            layout: layout,
+            include_sensitive: include_sensitive
         },
         callback: function(r) {
             if (r.message.status === 'success') {
