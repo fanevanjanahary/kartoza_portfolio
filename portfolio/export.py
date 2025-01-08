@@ -15,6 +15,8 @@ import re
 from html import unescape
 import zipfile
 from io import BytesIO
+import re
+from urllib.parse import urljoin
 
 @frappe.whitelist()
 def export_portfolio(portfolio_names, format, layout):
@@ -88,6 +90,24 @@ def export_portfolio(portfolio_names, format, layout):
         }
 
 
+
+def add_absolute_url_to_img_tags(html_content, base_url):
+    # Regex to find <img> tags with a relative src attribute
+    img_tag_pattern = r'(<img\b[^>]*\bsrc=["\'])(?!http|https|//)([^"\']*)(["\'])'
+    
+    # Use re.sub with a function to replace matches
+    def replace_with_absolute_url(match):
+        # Get the prefix, relative src, and suffix
+        prefix, relative_src, suffix = match.groups()
+        # Construct the absolute URL
+        absolute_src = urljoin(base_url, relative_src)
+        # Return the updated tag
+        return f"{prefix}{absolute_src}{suffix}"
+    
+    # Substitute all matches with the updated src
+    updated_html = re.sub(img_tag_pattern, replace_with_absolute_url, html_content)
+    return updated_html
+
 def generate_kartoza_html_content(portfolios):
     project_details = ""
     portfolio_names = frappe.parse_json(portfolios)
@@ -110,6 +130,8 @@ def generate_kartoza_html_content(portfolios):
         location = absolute_url + "/assets/portfolio/images/location.png"
         person = absolute_url + "/assets/portfolio/images/person.png"
         footer = absolute_url + "/assets/portfolio/images/footer.png"
+
+        portfolio_body =  add_absolute_url_to_img_tags(portfolio.body, absolute_url)
 
         images_list = ""
         for image in portfolio.images:
@@ -170,7 +192,7 @@ def generate_kartoza_html_content(portfolios):
                     <tr>
                         <td style="width:55%; border:1px solid gray; padding:10px;">
                             <p>Project Description</p>
-                            <p>{portfolio.body}</p>
+                            <p>{portfolio_body}</p>
                         </td>
                         <td style="width:45%; border:1px solid gray; padding:10px;vertical-align: top;">
                             <div>
@@ -194,7 +216,10 @@ def generate_kartoza_html_content(portfolios):
     <head>
         <title>Kartoza Project Sheet</title>
     </head>
-    <body>
+    <body style="
+        display: flex;
+        flex-direction: column;
+        ">
         {project_details}
         
     </body>
@@ -208,7 +233,7 @@ def generate_html_file(content):
     footer = absolute_url + "/assets/portfolio/images/footer.png"
     str_to_remove = f'<img src="{footer}" alt="Project Image" style="width:100%; height:220px; text-align:center; position:absolute; bottom:8px; left:0;">'
     result = content.replace(str_to_remove, "")
-    result = result.replace('<div style="page-break-after:always">', '<div style="page-break-after:always;height:110%">')
+    # result = result.replace('<div style="page-break-after:always">', '<div style="page-break-after:always;height:110%">')
     output = io.BytesIO()
     output.write(result.encode('utf-8'))
     output.seek(0)
