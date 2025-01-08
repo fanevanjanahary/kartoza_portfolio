@@ -99,7 +99,7 @@ def generate_kartoza_html_content(portfolios):
         
         client_contact = portfolio.contact if portfolio.contact != "" else "Unavailable"
         client_reference = portfolio.client_reference if portfolio.client_reference != "" else "Unavailable"
-        client_logo = frappe.utils.get_url() + portfolio.client_logo if portfolio.client_logo != "" else ""
+        client_logo = frappe.utils.get_url() + portfolio.client_logo if portfolio.client_logo  else ""
 
         services_list = ""
         for service in portfolio.services_listed:
@@ -120,67 +120,71 @@ def generate_kartoza_html_content(portfolios):
                 images_list += f'<img src="{image_url}" alt="Screenshot" style="width:100%; height:auto; object-fit:contain; padding:10px;"><br>'
 
         project_details += f"""
-        <div style="page-break-after: always;">
-            <h3 style="color:#f4b340; text-align:center;">Kartoza Project Sheet</h3>
-            <h2 style="text-align:center;">{portfolio.title}</h2>
-            <div>
-                <hr style="border: 8px solid #f4b340; width: 90px; margin:auto;">
-            </div>
-            <br><br>
-            <table style="width:100%; border-collapse:collapse;">
-                <tr>
-                    <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
-                        <div>
-                            <img src="{person}" alt="Project Image" style="width:80px; height:auto;">
-                            <p>Client: {portfolio.client}</p>
-                        </div>
-                    </td>
-                    <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
-                        <img src="{location}" alt="Project Image" style="width:80px; height:auto;">
-                        <p>Location: {portfolio.location}</p>
-                    </td>
-                    <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
-                        <img src="{time}" alt="Project Image" style="width:80px; height:auto;">
-                        <p>Period: {portfolio.start_date} - {portfolio.end_date}</p>
-                    </td>
-                </tr>
-            </table>
-            <table style="width:100%; border-collapse:collapse;">
-                <tr>
-                    <td style="width:40%; border:1px solid gray; vertical-align:top; padding:10px;">
-                        <div style="width:100%; height:100px; border:1px solid gray;">
-                            <img src="{client_logo}" style="width:100%; height:100%; object-fit:contain;"/>
-                        </div>
-                        <div style="width:100%; height:100px; border:1px solid gray;">
-                            Client reference: {client_reference}
-                        </div>
-                        <div style="width:100%; height:100px; border:1px solid gray;">
-                            Client contact: {client_contact}
-                        </div>
-                    </td>
-                    <td style="width:60%; border:1px solid gray; vertical-align:top; padding:10px;">
-                        <div style="height:300px; overflow:hidden;">
-                            {images_list}
-                        </div>
-                    </td>
-                </tr>
-            </table>
-            <table style="width:100%; border-collapse:collapse;">
-                <tr>
-                    <td style="width:60%; border:1px solid gray; padding:10px;">
-                        <p>Project Description</p>
-                        <p>{portfolio.body}</p>
-                    </td>
-                    <td style="width:40%; border:1px solid gray; padding:10px;">
-                        <p>Services Provided</p>
-                        <ul>
-                            {services_list}
-                        </ul>
-                    </td>
-                </tr>
-            </table>
-            <div>
-                <img src="{footer}" alt="Project Image" style="width:100%; height:auto; text-align:center; position:absolute; bottom:0; left:0;">
+        <div style="page-break-after:always">
+            <div style="height:100%; position:relative">
+                <h3 style="color:#f4b340; text-align:center;">Kartoza Project Sheet</h3>
+                <h2 style="text-align:center;">{portfolio.title}</h2>
+                <div>
+                    <hr style="border: 8px solid #f4b340; width: 90px; margin:auto;">
+                </div>
+                <br><br>
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                        <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                            <div>
+                                <img src="{person}" alt="Project Image" style="width:80px; height:auto;">
+                                <p>Client: {portfolio.client}</p>
+                            </div>
+                        </td>
+                        <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                            <img src="{location}" alt="Project Image" style="width:80px; height:auto;">
+                            <p>Location: {portfolio.location}</p>
+                        </td>
+                        <td style="width:33%; text-align:center; border:1px solid gray; padding:10px;">
+                            <img src="{time}" alt="Project Image" style="width:80px; height:auto;">
+                            <p>Period: {portfolio.start_date} - {portfolio.end_date}</p>
+                        </td>
+                    </tr>
+                </table>
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                        <td style="width:40%; border:1px solid gray; vertical-align:top; padding:10px;">
+                            <div style="width:100%; height:100px; border:1px solid gray;">
+                                <img src="{client_logo}" style="width:100%;height:100px; object-fit:contain;"/>
+                            </div>
+                            <div style="width:100%; height:100px; border:1px solid gray;">
+                                Client reference: {client_reference}
+                            </div>
+                            <div style="width:100%; height:100px; border:1px solid gray;">
+                                Client contact: {client_contact}
+                            </div>
+                        </td>
+                        <td style="width:60%; border:1px solid gray; vertical-align:top; padding:10px;">
+                            <div style="width:100%;overflow:hidden;">
+                                {images_list}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                        <td style="width:55%; border:1px solid gray; padding:10px;">
+                            <p>Project Description</p>
+                            <p>{portfolio.body}</p>
+                        </td>
+                        <td style="width:45%; border:1px solid gray; padding:10px;vertical-align: top;">
+                            <div>
+                                <p>Services Provided</p>
+                                <ul>
+                                    {services_list}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <div>
+                    <img src="{footer}" alt="Project Image" style="width:100%; height:220px; text-align:center; position:absolute; bottom:8px; left:0;">
+                </div>
             </div>
         </div>
         """
@@ -192,6 +196,7 @@ def generate_kartoza_html_content(portfolios):
     </head>
     <body>
         {project_details}
+        
     </body>
     </html>
     """
@@ -199,8 +204,13 @@ def generate_kartoza_html_content(portfolios):
 
 
 def generate_html_file(content):
+    absolute_url = frappe.utils.get_url() 
+    footer = absolute_url + "/assets/portfolio/images/footer.png"
+    str_to_remove = f'<img src="{footer}" alt="Project Image" style="width:100%; height:220px; text-align:center; position:absolute; bottom:8px; left:0;">'
+    result = content.replace(str_to_remove, "")
+    result = result.replace('<div style="page-break-after:always">', '<div style="page-break-after:always;height:110%">')
     output = io.BytesIO()
-    output.write(content.encode('utf-8'))
+    output.write(result.encode('utf-8'))
     output.seek(0)
     return output.getvalue()
 
